@@ -44,6 +44,7 @@ namespace OperatorPhone.UI
         private readonly Stack<PhoneApp> _stack = new Stack<PhoneApp>();
         private Text _titleLabel;
         private GameObject _backButton;
+        private GameObject _homeButton;
         private PhoneApp _home;
 
         public IReadOnlyList<PhoneApp> Apps => _apps;
@@ -66,6 +67,13 @@ namespace OperatorPhone.UI
             br.anchorMax = new Vector2(0f, 1f);
             br.pivot = new Vector2(0f, 0.5f);
             br.sizeDelta = new Vector2(44f, 0f);
+
+            _homeButton = Ui.TextButton("Home", nav.transform, "\u2302", Ui.Panel, Ui.Accent, 18, ShowHome).gameObject;
+            var hr = _homeButton.GetComponent<RectTransform>();
+            hr.anchorMin = new Vector2(1f, 0f);
+            hr.anchorMax = new Vector2(1f, 1f);
+            hr.pivot = new Vector2(1f, 0.5f);
+            hr.sizeDelta = new Vector2(44f, 0f);
 
             _titleLabel = Ui.Label("AppTitle", nav.transform, "", 15, TextAnchor.MiddleCenter, Ui.Text);
             var tr = _titleLabel.GetComponent<RectTransform>();
@@ -99,13 +107,18 @@ namespace OperatorPhone.UI
         public void Push(PhoneApp app)
         {
             if (app == null) return;
-            Current?.Root.SetActive(false);
-            Current?.OnClosed();
+
+            var leaving = Current;
+            if (leaving != null)
+            {
+                leaving.Root.SetActive(false);
+                SafeClosed(leaving);
+            }
 
             _stack.Push(app);
             app.Root.SetActive(true);
-            app.OnOpened();
-            Refresh();
+            SafeOpened(app);
+            Refresh();   // must run even if the app threw, or nav controls stay stale
         }
 
         public void Back()
@@ -116,7 +129,7 @@ namespace OperatorPhone.UI
             if (now != null)
             {
                 now.Root.SetActive(true);
-                now.OnOpened();
+                SafeOpened(now);
             }
             Refresh();
         }
@@ -125,13 +138,33 @@ namespace OperatorPhone.UI
         {
             var app = _stack.Pop();
             app.Root.SetActive(false);
-            app.OnClosed();
+            SafeClosed(app);
+        }
+
+        /// <summary>
+        /// App callbacks are isolated because a throw inside one would otherwise skip
+        /// Refresh() and leave navigation wedged — back and home buttons stuck in
+        /// whatever state they were in, with no visible connection to the real cause.
+        /// A broken app should be a broken screen, not a broken phone.
+        /// </summary>
+        private static void SafeOpened(PhoneApp app)
+        {
+            try { app.OnOpened(); }
+            catch (System.Exception e) { PhoneMod.Log.Error($"{app.Title}.OnOpened threw: {e}"); }
+        }
+
+        private static void SafeClosed(PhoneApp app)
+        {
+            try { app.OnClosed(); }
+            catch (System.Exception e) { PhoneMod.Log.Error($"{app.Title}.OnClosed threw: {e}"); }
         }
 
         private void Refresh()
         {
             if (_titleLabel != null) _titleLabel.text = Current?.Title ?? "";
-            if (_backButton != null) _backButton.SetActive(_stack.Count > 1);
+            var deep = _stack.Count > 1;
+            if (_backButton != null) _backButton.SetActive(deep);
+            if (_homeButton != null) _homeButton.SetActive(deep);
         }
     }
 }
