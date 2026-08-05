@@ -150,7 +150,7 @@ Issues and PRs welcome. Worth reading first:
 - Envelope changes need a `v` bump and graceful degradation — an older client must
   ignore an unknown message type, not throw.
 - Anything rendering remote content is a moderation surface. Assume hostile input.
-
+- Thank You to the wasted bapeasaurus on discord for helping me test the mod
 ## Not affiliated
 
 Not affiliated with or endorsed by Vector Interactive. OPERATOR is their work; this is
