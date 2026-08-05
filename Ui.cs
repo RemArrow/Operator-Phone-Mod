@@ -101,7 +101,12 @@ namespace OperatorPhone.UI
             var content = contentGo.GetComponent<RectTransform>();
             content.anchorMin = new Vector2(0f, 1f);
             content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
+            // Pivot at the top-LEFT, not top-centre. With a centred pivot a child wider
+            // than the viewport spills equally past both edges instead of being clipped
+            // predictably — which is how bubbles ended up cut off on both sides.
+            content.pivot = new Vector2(0f, 1f);
+            content.offsetMin = new Vector2(0f, content.offsetMin.y);
+            content.offsetMax = new Vector2(0f, content.offsetMax.y);
 
             var layout = contentGo.AddComponent<VerticalLayoutGroup>();
             layout.childControlWidth = true;
