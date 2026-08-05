@@ -212,6 +212,13 @@ namespace OperatorPhone.UI.Apps
             if (_convoScroll != null) _convoScroll.verticalNormalizedPosition = 0f;
         }
 
+        // Widest a bubble may get. The phone panel is 380 units wide with 8 units of
+        // list padding each side, so this leaves a clear gutter on the opposite side —
+        // which is what makes the left/right alignment readable at a glance.
+        private const float MaxBubbleW = 226f;
+        private const float BubblePadX = 14f;
+        private const float BubblePadY = 9f;
+
         private void AddBubble(Message m)
         {
             var row = Ui.Invisible("Row", _convoContent);
@@ -223,23 +230,37 @@ namespace OperatorPhone.UI.Apps
             var label = Ui.Label("Body", bubble.transform, m.Body, 13,
                 TextAnchor.UpperLeft, Ui.Text, wrap: true);
             var lr = label.GetComponent<RectTransform>();
-            Ui.Fill(lr);
-            lr.offsetMin = new Vector2(10f, 8f);
-            lr.offsetMax = new Vector2(-10f, -8f);
 
-            // Measure wrapped height for a fixed 240px bubble width, then size the row.
-            var settings = label.GetGenerationSettings(new Vector2(220f, 0f));
-            var height = new TextGenerator().GetPreferredHeight(m.Body, settings)
-                         / label.pixelsPerUnit;
-            var bubbleH = Mathf.Max(34f, height + 18f);
+            // Measure at the maximum text width, then shrink the bubble to fit short
+            // messages. Sizing to a fixed width instead made every bubble the same
+            // width and pushed them past the row edges.
+            var textMax = MaxBubbleW - BubblePadX * 2f;
+            var gen = new TextGenerator();
+            var settings = label.GetGenerationSettings(new Vector2(textMax, 0f));
+
+            var textW = Mathf.Min(gen.GetPreferredWidth(m.Body, settings) / label.pixelsPerUnit, textMax);
+            var textH = gen.GetPreferredHeight(m.Body, settings) / label.pixelsPerUnit;
+
+            var bubbleW = Mathf.Clamp(textW + BubblePadX * 2f, 44f, MaxBubbleW);
+            var bubbleH = Mathf.Max(30f, textH + BubblePadY * 2f);
+
             le.preferredHeight = bubbleH + 4f;
             le.minHeight = bubbleH + 4f;
 
-            br.anchorMin = m.Mine ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
+            // Anchor to one edge of the row and size explicitly. Row width is driven by
+            // the layout group, so anchoring to a corner keeps the bubble inside it
+            // regardless of how wide the panel ends up.
+            br.anchorMin = new Vector2(m.Mine ? 1f : 0f, 0.5f);
             br.anchorMax = br.anchorMin;
             br.pivot = new Vector2(m.Mine ? 1f : 0f, 0.5f);
-            br.sizeDelta = new Vector2(240f, bubbleH);
-            br.anchoredPosition = new Vector2(m.Mine ? -4f : 4f, 0f);
+            br.sizeDelta = new Vector2(bubbleW, bubbleH);
+            br.anchoredPosition = Vector2.zero;
+
+            // Label fills the bubble minus padding, so wrapping matches the measurement.
+            lr.anchorMin = Vector2.zero;
+            lr.anchorMax = Vector2.one;
+            lr.offsetMin = new Vector2(BubblePadX, BubblePadY);
+            lr.offsetMax = new Vector2(-BubblePadX, -BubblePadY);
         }
 
         /* ------------------------------------------------------------- actions */
